@@ -15,7 +15,7 @@ type AI = Double -> Game -> [(Int, Int)]
 
 -- | A list of known AIs and their names.
 ais :: [(String, AI)]
-ais = [("default", makeBestMove), ("helloWorld", makeFirstLegalMove)]
+ais = [("default", makeBestMove), ("helloWorld", makeFirstLegalMove), ("greedyBot", greedyBot)]
 
 -- | The default AI. It just repeatedly applies `makeAMove` to
 -- increasingly higher depths.
@@ -43,3 +43,22 @@ makeFirstLegalMove :: AI
 makeFirstLegalMove _ game = case legalMoves game of
     []          -> error "makeFirstLegalMove: No Legal moves"
     move:_      -> [move]
+
+greedyBot :: AI
+greedyBot _ (Game Nothing _) = []
+greedyBot _ game@(Game (Just player) board) = case legalMoves game of
+        []   -> error "greedyBot: No Legal moves"
+        x:xs ->  find_moves (maximum (calculate_score (x:xs))) (x:xs)
+        where
+           calculate_score :: [(Int, Int)] -> [Int]
+           calculate_score move_ls = case move_ls of
+                    []          -> []
+                    (a,b):xs    ->
+                        currentScore player (playMove a b player board):
+                        calculate_score xs
+           find_moves max_n move_ls = case move_ls of
+                []          -> []
+                (a,b):xs
+                    | currentScore player (playMove a b player board) == max_n ->
+                        (a,b): find_moves max_n xs
+                    | otherwise -> find_moves max_n xs
