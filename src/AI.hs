@@ -1,14 +1,14 @@
-{-|
-Module      : AI
-Description : The AI for Othello
-Copyright   : (c) Robert 'Probie' Offner, <your name here>, 2018
-License     : GPL-3
+{-
+Module  : AI
+Copy right from ANU assignment 3
+Date : Oct. 14th
 -}
 module AI where
 
 import Game
 import GameState
--- |  An AI is a function from the time given and the current state of
+
+-- | An AI is a function from the time given and the current state of
 -- the game to a (potentially infinite) list of increasingly better
 -- moves.
 type AI = Double -> Game -> [(Int, Int)]
@@ -24,44 +24,119 @@ makeBestMove _timeout game = map (makeAMove game) [1..]
 
 -- | Given a `Game` and a lookahead, return the best move to play
 makeAMove :: Game -> Int -> (Int, Int)
-makeAMove = undefined
--- makeAMove (Game (Just p) board) depth
---     | depth == 1    = find_moves (maximum score_ls) legal_move_ls
---     | depth `mod` 2 == 0 = minimum score_ls
---      depth > 0     =   undefined
---     where
---     legal_moves_ls = legalMoves (Game (Just p) board)
---     score_ls = [currentScore p x | x <- board_ls ]
---     board_ls = playAllMoves legal_moves_ls p board
--- playAllMoves :: [(Int, Int)] -> Player -> Board -> [Board]
--- playAllMoves ls p board = case ls of
---     []      ->  [board]
---     ((a,b):xs) -> playMove a b p board:playAllMoves xs p board
---------------------------------------------------------------
-newGame :: Game -> [Game]
-newGame (Game Nothing _) = []
-newGame game@(Game (Just p) board) = map (Game (Just (opponent p))) (newBoard board moves)
+makeAMove game d = last $ snd' (maximise (prune d (othelloGameState game)))
+
+
+
+data Tree a = Node a [Tree a]
+
+type Score = Int
+type Move = (Int, Int)
+type GameState = (Score, [Move], Game)
+
+gameTree :: (a -> [a]) -> a -> Tree a
+gameTree f a = Node a (map (gameTree f) (f a))
+
+maximise :: (Ord a) => Tree a -> a
+maximise (Node v [])= v
+maximise (Node _ subtrees) = maximum $  map minimise subtrees
+
+minimise :: (Ord a) => Tree a -> a
+minimise (Node v []) = v
+minimise (Node _ subtrees) = minimum $ map maximise subtrees
+
+prune :: Int -> Tree a -> Tree a
+prune _ (Node a []) = Node a []
+prune 0 (Node a _) = Node a []
+prune n (Node a children) = Node a (map (prune (n-1)) children)
+
+treeMap :: (a -> b) -> Tree a -> Tree b
+treeMap f (Node a lst) = case lst of
+  []    -> Node (f a) []
+  cs    -> Node (f a) (map (treeMap f) cs)
+
+othelloGameState :: Game -> Tree GameState
+othelloGameState (Game Nothing board) = Node (-10000, [], Game Nothing board) []
+othelloGameState game@(Game (Just pl) _) = Node (-10000, [], game) (map (gameTree makeGameStateList) firstGameState)
+    where
+        firstGameState = valueNextMove game
+        makeGameStateList :: GameState -> [GameState]
+        makeGameStateList (_, moveList, g) = case g of
+            Game (Just _) _ ->  zip3 scores (newMoveList moves moveList) games
+            Game Nothing _ -> []
+            where
+                moves = legalMoves g
+                games = nextGame g
+                scores = map (valueGame pl) games
+
+fst' :: (a, b, c) -> a
+fst' (s, _, _) = s
+
+snd' :: (a, b, c) -> b
+snd' (_, m, _) = m
+valueNextMove :: Game -> [GameState]
+valueNextMove game  =  case game of
+  (Game Nothing b)    -> [(-10000, [], Game Nothing b)]
+  (Game (Just pl) board)    -> map (valueMove pl board) moves
   where
     moves = legalMoves game
-    newBoard :: Board -> [(Int, Int)] -> [Board]
-    newBoard b move_ls = case (fst_ls, snd_ls) of
-      ([],[])   -> []
-      ([], _)    -> []
-      (_, [])   -> []
-      (x:xs, y:ys)    ->  playMove x y (opponent p) b :
-                            newBoard b (zip xs ys)
-
+    valueMove :: Player -> Board -> Move -> GameState
+    valueMove p b (x,y) = (score, [(x,y)], newGame)
       where
-        fst_ls = map fst move_ls
-        snd_ls = map snd move_ls
+        newBoard = playMove x y p b
+        score = valueBoard p newBoard
+        newGame
+         | legalMoves (Game (Just (opponent p)) newBoard) /= [] = Game (Just (opponent p)) newBoard
+         | otherwise = Game Nothing newBoard
 
 
+newMoveList :: [Move] -> [Move] -> [[Move]]
+newMoveList m ml = case m of
+    []      -> []
+    x:xs    -> (x:ml) : newMoveList xs ml
 
--------------------------------------------------------------
--- countAllScores :: Player -> [Board] -> [Int]
--- countAllScores p ls = case ls of
---     []          -> []
---     x:xs        -> currentScore p x : countAllScores p xs
+
+valueBoard :: Player -> Board -> Score
+valueBoard p board =  countValues playerPieces
+  where
+    countValues lst = case lst of
+      []    -> 0
+      ((n, _):xs)  -> n + countValues xs
+    boardValues = [zip x y | (x,y) <- zip weights board]
+--     boardValuesOpponent = [zip (-x) y | (x,y) <- zip weights board]
+    playerPieces = filter ((== Just p).snd) (concat boardValues)
+--     allPieces = filter snd (concat )
+weights :: [[Int]]
+weights = [[120, -25, 10, 5, 5, 10, -25, 120],
+        [-25, -45, 1, 1, 1, 1, -45, -25],
+        [10, 1, 3, 2, 2, 3, 1, 10],
+        [5, 1, 2, 1, 1, 2, 1, 5],
+        [5, 1, 2, 1, 1, 2, 1, 5],
+        [10, 1, 3, 2, 2, 3, 1, 10],
+        [-25, -45, 1, 1, 1, 1, -45, -25],
+        [120, -25, 10, 5, 5, 10, -25, 120] ]
+
+
+valueGame :: Player -> Game -> Score
+valueGame pl (Game _ board) = valueBoard pl board
+
+
+playAllMoves :: [(Int, Int)] -> Player -> Board -> [Board]
+playAllMoves lst p board = case lst of
+    []      ->  [board]
+    ((a,b):xs) -> playMove a b p board:playAllMoves xs p board
+
+
+nextGame :: Game -> [Game]
+nextGame (Game Nothing _) = []
+nextGame game@(Game (Just p) board)
+    | null moves    = []
+    | otherwise     = map (Game (Just (opponent p)))
+                          (playAllMoves moves p board)
+  where
+    moves = legalMoves game
+
+
 -- | A list of possible moves for the players.
 possibleMoves :: [(Int, Int)]
 possibleMoves = [(row, col) | row <- [0..7], col <- [0..7]]
@@ -80,24 +155,23 @@ makeFirstLegalMove _ game = case legalMoves game of
     []          -> error "makeFirstLegalMove: No Legal moves"
     move:_      -> [move]
 
+
+
 greedyBot :: AI
 greedyBot _ (Game Nothing _) = []
-greedyBot _ game@(Game (Just player) board) = case legalMoves game of
+greedyBot _ game@(Game (Just _) _) = case legalMoves game of
         []   -> error "greedyBot: No Legal moves"
-        x:xs ->  find_moves (maximum (calculate_score (x:xs))) (x:xs)
+        _ -> getMoves maxScore valueMoves
+
         where
-           calculate_score :: [(Int, Int)] -> [Int]
-           calculate_score move_ls = case move_ls of
-                    []          -> []
-                    (a,b):xs    ->
-                        currentScore player (playMove a b player board):
-                        calculate_score xs
+          valueMoves = valueNextMove game
+          maxScore = maximum $ map fst' valueMoves
+          getMoves :: Int -> [GameState] -> [Move]
+          getMoves maxS lst = case lst of
+            []        -> []
+            x:xs
+              | fst' x == maxS    -> [head (snd' x)]
+              | otherwise         -> getMoves maxS xs
 
 
-           find_moves :: Int -> [(Int, Int)] -> [(Int, Int)]
-           find_moves max_n move_ls = case move_ls of
-                []          -> []
-                (a,b):xs
-                    | currentScore player (playMove a b player board) == max_n ->
-                        (a,b): find_moves max_n xs
-                    | otherwise -> find_moves max_n xs
+

@@ -83,7 +83,7 @@ collectPieces :: Int -> Int -> Board -> (Maybe Player -> Bool) ->
                  (Maybe Player -> Bool) ->
                  (Int -> Int -> (Int,Int)) ->
                  ([(Int,Int)] -> [(Int,Int)]) ->
-                 [(Int,Int)] 
+                 [(Int,Int)]
 collectPieces colNum rowNum board keepTaking stopTaking nextCoord edgeFunction =
   go colNum rowNum []
   where
