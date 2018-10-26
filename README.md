@@ -84,7 +84,7 @@ read the documentation and try using it yourself inside GHCi.
 ### The framework
 
 The framework consists of several files, many of which are of little
-interest to you. In particular anything the file `Main.hs` can be
+interest to you. In particular anything in the file `Main.hs` can be
 ignored, as well as anything in the folder `Dragons`.
 (On medieval maps they drew pictures of dragons or sea monsters on
 uncharted areas, and the code contained in these files is
@@ -140,14 +140,14 @@ ais = [("default", makeBestMove), ("helloWorld", makeFirstLegalMove)]
 Alright, we've now registered an AI called `"helloWorld"` which is
 defined by the function `makeFirstLegalMove`. Now we just need to define
 the `makeFirstLegalMove` function. For Othello we have an 8x8 board,
-and because we index from 0, a move is defined as pair `(row,col)` where
+and because we index from 0, a move is defined as pair `(col,row)` where
 both `row` and `col` are between 0 and 7 (inclusive). We can easily make
 a list of all possible moves using a list comprehension.
 
 ```haskell
 -- | A list of possible moves for the players.
 possibleMoves :: [(Int,Int)]
-possibleMoves = [(row,col) | row <- [0..7], col <- [0..7]]
+possibleMoves = [(col,row) | row <- [0..7], col <- [0..7]]
 ```
 
 Add this to your `AI.hs` file.
@@ -163,7 +163,7 @@ legalMoves (Game Nothing _) = [] -- The game is over
 legalMoves (Game (Just player) board) =
   filter legalForThisGame possibleMoves
   where
-    legalForThisGame (row,col) = legalMove row col player board
+    legalForThisGame (col,row) = legalMove col row player board
 ```
 
 So now we have a function, which given a game can tell us what all the
@@ -201,15 +201,15 @@ against it. `cabal run othello` runs the program with the default
 settings. That is, a human player playing against an AI called
 `"helloWorld"`. To do something different than the default settings,
 you'll need to give the program arguments.
-Run `cabal run othello --help` and you should see something like
+Run `cabal run othello -- --help` and you should see something like
 
 ```
 Usage: othello [OPTION...]
   -T GAMETYPE    --type=GAMETYPE      The type of the game. One of console, gui, host, join and tournament. Defaults to gui.
   -t TIMEOUT     --timeout=TIMEOUT    The timeout (in seconds) for the game.
-  -p PLAYER1     --player1=PLAYER1    Player 1 (or the only player for single player games. HUMAN if a human player. Defaults to human.
+  -p PLAYER1     --player1=PLAYER1    Player 1 (or the only player for single player games). HUMAN if a human player. Defaults to human.
   -P PLAYER2     --player2=PLAYER2    Player 2 (HUMAN if a human player). Defaults to the AI helloWorld.
-  -h HOSTNAME    --hostname=HOSTNAME  Hostname of the computer to connect to for a network game or tournament.
+  -H HOSTNAME    --hostname=HOSTNAME  Hostname of the computer to connect to for a network game or tournament.
   -n PORTNUMBER  --port=PORTNUMBER    The port number to connect to or host on for a network game. Defaults to 9001.
   -h             --help               Prints this help message and exits.
 
@@ -237,7 +237,7 @@ against itself. The final position should look like.
 
 ### Making a good move
 
-To make a good AI. We need to have a way of deciding what is, and what
+To make a good AI, we need to have a way of deciding what is, and what
 isn't a good move. A good place to start, is by trying to work out what
 are, and what aren't, good board positions. As you may have noticed,
 the score given in the game can move by quite a bit in a single turn,
@@ -296,7 +296,7 @@ of time. Unfortunately in the GUI, the depth of the search isn't
 displayed, but if you run it in `console` mode (remember, you can see
 the options at any time with `cabal run othello -- --help`) it will
 tell you how far it looks ahead. _If it's returning a very large
-number that probably means you've searched to the end of the tree_
+number, that probably means you've searched to the end of the tree._
 
 There are several optimisations to minimax, but one of the most effective
 is known as
@@ -322,7 +322,7 @@ MTD(f) which attempt to improve on Alpha-Beta pruning.
 
 You're required to submit an AI which can play Othello called
 `"default`". (i.e if I call
-`cabal run othello -- -p "default" -P "default` I should be able to
+`cabal run othello -- -p "default" -P "default"` I should be able to
 watch it play against itself.)
 
 You can include as many other AIs as you'd like, but `"default"` should
